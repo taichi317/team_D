@@ -1,5 +1,5 @@
-PImage stage, nouka1,nouka2, noukaAttack;
-PImage inago1,inago2, suzume1, suzume2, heartImg, startScreenImg;
+PImage stage, nouka1, nouka2, noukaAttack;
+PImage inago1, inago2, suzume1, suzume2, heartImg, startScreenImg, goalImg;
 
 //プレイヤー用
 int x = 0;
@@ -38,7 +38,7 @@ int[] suzumehitTimer = new int[suzumeCount];
 boolean[] suzumeAlive = new boolean[suzumeCount];
 
 //状態管理
-int gameState = 1; // 0:スタート画面は省略, 1:プレイ中, 2:ゲームオーバー
+int gameState = 0; // 0:スタート画面は省略, 1:プレイ中, 2:ゲームオーバー
 
 //攻撃
 boolean isAttacking = false;
@@ -50,13 +50,16 @@ boolean rightPressed = false;
 boolean leftPressed = false;
 
 //ゴール
-PImage goalImg;
-float goalX = 950;  // ゴールのX座標（右端付近）
-float goalY = 220;  // 地面と同じ高さ
+float goalX = 1000;
+float goalY = 220;
 float goalW = 50;
 float goalH = 50;
 
-
+//スタートボタンの座標と大きさ　135と273にこれに関するプログラムある
+float startBtnX=275;
+float startBtnY=125;
+float startBtnW=245;
+float startBtnH=60;
 
 void setup() {
   size(800, 400);
@@ -70,25 +73,28 @@ void loadImages() {
 
   nouka1 = loadImage("無題8_20250804220912.png");
   nouka1.resize(75, 75);
-  nouka2 =loadImage("無題6_20250804223505.png");
-  nouka2.resize(75,75);
-
-  noukaAttack = loadImage("無題2_20250804213754.png"); // 同じ画像を代用
+  nouka2 = loadImage("無題6_20250804223505.png");
+  nouka2.resize(75, 75);
+  noukaAttack = loadImage("無題2_20250804213754.png");
   noukaAttack.resize(75, 75);
 
   inago1 = loadImage("IMG_0474.png");
   inago1.resize(40, 40);
-  inago2 =loadImage("IMG_0475.png");
-  inago2.resize(40,40);
+  inago2 = loadImage("IMG_0475.png");
+  inago2.resize(40, 40);
 
   suzume1 = loadImage("IMG_0476.png");
   suzume1.resize(40, 40);
   suzume2 = loadImage("IMG_0477.png");
   suzume2.resize(40, 40);
 
-   heartImg = loadImage("IMG_1927.png");
-   heartImg.resize(40,40);// コメントアウト中でもOK
+  heartImg = loadImage("IMG_1927.png");
+  heartImg.resize(40, 40);
+
   startScreenImg = loadImage("IMG_1926.jpg");
+
+  goalImg = loadImage("IMG_1925.jpg"); // ← ファイル名を適切に
+  goalImg.resize(int(goalW), int(goalH));
 }
 
 void initializeGame() {
@@ -97,7 +103,6 @@ void initializeGame() {
   life = 3;
   isAttacking = false;
 
-  // 配列は空なので初期化不要ですが、念のため
   for (int i = 0; i < inagoCount; i++) {
     inagoX[i] = random(min + 100, max - 100);
     inagoY[i] = groundY;
@@ -115,22 +120,39 @@ void initializeGame() {
   }
 }
 
-void draw() {
-  //動きの処理
+void draw() {background(255);
+  
+  //コジコジ：ここから
+   if (gameState == 0) {
+    if (startScreenImg != null) {
+      image(startScreenImg, 0, 0, width, height);
+      // ボタン範囲を見えるようにしたい時（デバッグ用）
+       //noFill(); stroke(255, 0, 0); rect(startBtnX, startBtnY, startBtnW, startBtnH);
+    } else {
+      fill(0);
+      textSize(50);
+      textAlign(CENTER, CENTER);
+      text("Press SPACE to Start", width / 2, height / 2);
+    }
+    return; // draw終了
+  }
+//ここまでスタート画面のプログラム
+  
+  
+  
+  // キャラの左右移動
   if (rightPressed && x < max - wid / 2) {
-  x += 5;
-  posi = 0;
-}
-if (leftPressed && x > min) {
-  x -= 5;
-  posi = 1;
-}
-  
-  
-  background(255);
-  
-  
+    x += 5;
+    posi = 0;
+  }
+  if (leftPressed && x > min) {
+    x -= 5;
+    posi = 1;
+  }
 
+ 
+
+  // ゲームオーバー処理
   if (life <= 0) {
     fill(255, 0, 0);
     textSize(50);
@@ -141,18 +163,23 @@ if (leftPressed && x > min) {
     return;
   }
 
-  if (allEnemiesDefeated()) {
-   fill(0, 200, 0);
-   textSize(50);
-  text("GAME CLEAR!", width / 2, height / 2);
-   noLoop();
-   return;
- }
+  // ゴール判定（ゲームクリア）
+  if (hit(x, y, 75, 75, goalX, goalY, goalW, goalH)) {
+    fill(0, 200, 0);
+    textSize(50);
+    textAlign(CENTER, CENTER);
+    text("GAME CLEAR!", width / 2, height / 2);
+    text("Press R to restart", width / 2, height / 2 + 50);
+    noLoop();
+    return;
+  }
 
+  // ライフ表示
   for (int i = 0; i < life; i++) {
     if (heartImg != null) image(heartImg, 10 + i * (heartImg.width + 5), 10);
   }
 
+  // 背景スクロール処理
   if (x < min + wid / 2) {
     a[0] = 1;
     a[1] = 0;
@@ -167,6 +194,11 @@ if (leftPressed && x > min) {
     image(stage, -x + wid / 2, 0);
   }
 
+  // ゴール描画
+  float goalDrawX = goalX * a[0] + wid / 2 * a[1] - x * a[1];
+  image(goalImg, goalDrawX, goalY, goalW, goalH);
+
+  // 重力とジャンプ
   vy += gravity;
   y += vy;
   if (y > groundY) {
@@ -177,12 +209,15 @@ if (leftPressed && x > min) {
     onGround = false;
   }
 
+  // 攻撃の時間制御
   if (isAttacking && frameCount - attackStartTime > attackDuration) {
     isAttacking = false;
   }
 
-  image(isAttacking ? noukaAttack : nouka1, x * a[0] + 123 * a[1], y);
+  // キャラ描画
+  image(isAttacking ? noukaAttack : nouka1, x * a[0] + 10* a[1], y);
 
+  // 敵の描画
   drawEnemies(inagoX, inagoY, inagoAlive, hitCooldown, hitTimer, inago1, inagoW, inagoH, 0.5);
   drawEnemies(suzumeX, suzumeY, suzumeAlive, suzumehitCooldown, suzumehitTimer,
               (frameCount / 6) % 2 == 0 ? suzume1 : suzume2, suzumeW, suzumeH, 1.0);
@@ -225,44 +260,50 @@ boolean allEnemiesDefeated() {
 
 void keyPressed() {
   if (key == 'r' || key == 'R') {
-    if (life <= 0 || allEnemiesDefeated()) {
-      initializeGame();
-      loop();
-    }
+    initializeGame();
+    loop();
+  }
+if (key == 'd' || key == 'D') {
+    rightPressed = true;
+  } else if (key == 'a' || key == 'A') {
+    leftPressed = true;
   }
 
-  if (key == CODED) {
-    if (keyCode == RIGHT) {
-      rightPressed = true;
-    } else if (keyCode == LEFT) {
-      leftPressed = true;
-    }
-  }
+  
 }
 
 void keyReleased() {
-  if (key == CODED) {
-    if (keyCode == RIGHT) {
-      rightPressed = false;
-    } else if (keyCode == LEFT) {
-      leftPressed = false;
-    }
-  }
+  if (key == 'd' || key == 'D') {
+  rightPressed = false;
+} else if (key == 'a' || key == 'A') {
+  leftPressed = false;
+  
+}
+if ((key == 'w' || key == 'W') && onGround) {
+  vy = jumpPower;
+  onGround = false;
 }
 
 
-void mousePressed() {
-  // 右クリックでジャンプ（地面にいる時のみ）
-  if (mouseButton == RIGHT && onGround) {
-    vy = jumpPower;
-    onGround = false;
-  }
+}
 
-  //左クリックは攻撃（必要なら有効化）
-   if (mouseButton == LEFT) {
-     if (!isAttacking) {
-       isAttacking = true;
-       attackStartTime = frameCount;
-     }
-   }
+void mousePressed() {
+  
+
+  if (mouseButton == LEFT) {
+    if (!isAttacking) {
+      isAttacking = true;
+      attackStartTime = frameCount;
+    }
+  }
+  //ここがクリックしてほしいところを決める関数
+  if (gameState == 0) {
+    // スタート画面中にクリックされたら範囲チェック
+    if (mouseX >= startBtnX && mouseX <= startBtnX + startBtnW &&
+        mouseY >= startBtnY && mouseY <= startBtnY + startBtnH) {
+      gameState = 1;
+      loop();
+    }
+    return; // スタート画面だった場合は処理終了
+  }
 }
